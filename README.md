@@ -84,3 +84,10 @@ The system follows a multi-model pipeline:
 
 ## 📂 Folder Structure (To Be Updated)
 
+---
+
+## 📢 Note
+
+This project is strictly educational and experimental. It does **not constitute financial advice**.
+
+
