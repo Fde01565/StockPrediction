@@ -13,6 +13,7 @@ st.title("📈 Stock Price Predictor")
 
 # User input
 ticker = st.text_input("Enter Stock Ticker:", "AAPL")
+num_days = st.number_input("How many days to predict?", min_value=1, max_value=30, value=1, step=1)
 
 if st.button("Predict"):
     # Step 1: Get the stock's last 6 months of closing prices
@@ -29,19 +30,33 @@ if st.button("Predict"):
 
         # Step 3: Take the last 30 days as input
         last_30_days = scaled_data[-30:]
-        input_sequence = last_30_days.reshape(1, 30, 1)
+        input_sequence = last_30_days.copy()
 
-        # Step 4: Make prediction
-        predicted_scaled = model.predict(input_sequence)
-        predicted_price = scaler.inverse_transform(predicted_scaled)
+        predicted_prices = []
 
-        # Step 5: Show prediction
-        st.subheader("📅 Predicted Closing Price for Tomorrow:")
-        st.success(f"${predicted_price[0][0]:.2f}")
+        for _ in range(num_days):
+            input_seq = input_sequence.reshape(1, 30, 1)
+            pred_scaled = model.predict(input_seq)
+            pred_price = scaler.inverse_transform(pred_scaled)
+            predicted_prices.append(pred_price[0][0])
+            
+            # Update the sequence: drop first, add predicted
+            next_scaled = pred_scaled[0][0]
+            input_sequence = np.append(input_sequence, [[next_scaled]], axis=0)[-30:]
 
-        # Step 6: Plot past prices + predicted price line
+        # Step 4: Show predicted prices
+        st.subheader(f"📅 Predicted Closing Prices for Next {num_days} Day(s):")
+        for i, price in enumerate(predicted_prices, start=1):
+            st.write(f"Day {i}: **${price:.2f}**")
+
+        # Step 5: Plot past + predicted
         fig, ax = plt.subplots()
-        ax.plot(df['Close'][-60:], label="Past 60 Days")
-        ax.axhline(y=predicted_price[0][0], color='orange', linestyle='--', label="Predicted Price")
+        past_days = df['Close'][-60:]
+        future_days = pd.date_range(start=past_days.index[-1] + pd.Timedelta(days=1), periods=num_days)
+
+        ax.plot(past_days.index, past_days.values, label="Past 60 Days")
+        ax.plot(future_days, predicted_prices, color='orange', linestyle='--', label="Predicted Future")
+
+        ax.set_title(f"{ticker.upper()} – Past 60 Days + {num_days}-Day Forecast")
         ax.legend()
         st.pyplot(fig)
