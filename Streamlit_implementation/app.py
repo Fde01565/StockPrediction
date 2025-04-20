@@ -6,6 +6,10 @@ from tensorflow.keras.models import load_model
 from sklearn.preprocessing import MinMaxScaler
 import matplotlib.pyplot as plt
 
+# Initialize session state for history
+if "prediction_history" not in st.session_state:
+    st.session_state.prediction_history = []
+
 # Load LSTM model
 model = load_model("model.h5")
 
@@ -48,8 +52,6 @@ if run_prediction:
             company_name = info.get("longName", ticker)
 
             st.subheader(f"📊 {company_name} ({ticker})")
-
-            # Show next-day forecast metric
             st.metric(label=f"Prediction for Day 1", value=f"${predicted_prices[0]:.2f}")
 
             # Tabs for forecast and chart
@@ -76,4 +78,34 @@ if run_prediction:
                 ax.legend()
                 st.pyplot(fig)
 
+            # ✅ Fix: Force to float to avoid Series formatting error
+            last_price = float(df['Close'].iloc[-1])
+
+            # Save to prediction history
+            st.session_state.prediction_history.append({
+                "Date": pd.Timestamp.now().strftime("%Y-%m-%d %H:%M"),
+                "Ticker": ticker,
+                "Days Predicted": num_days,
+                "Day 1 Prediction ($)": f"{predicted_prices[0]:.2f}",
+                "Last Price ($)": f"{last_price:.2f}"
+            })
+
             st.success("✅ Prediction complete!")
+
+# Display history at the bottom
+st.markdown("---")
+st.subheader("📁 Prediction History (This Session)")
+
+if st.session_state.prediction_history:
+    hist_df = pd.DataFrame(st.session_state.prediction_history)
+    st.dataframe(hist_df, use_container_width=True)
+
+    csv = hist_df.to_csv(index=False).encode("utf-8")
+    st.download_button(
+        label="⬇️ Download History as CSV",
+        data=csv,
+        file_name="prediction_history.csv",
+        mime="text/csv"
+    )
+else:
+    st.info("No predictions made yet.")
